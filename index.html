@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador y Gestor de Contraseñas Seguras</title>
+    <!-- Carga de Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Carga de Lucide Icons (para íconos) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #4f46e5;
+            --primary-light: #818cf8;
+            --background-color: #1f2937;
+            --card-color: #374151;
+            --text-color: #f3f4f6;
+        }
+
+        body {
+            background-color: var(--background-color);
+            color: var(--text-color);
+            font-family: 'Inter', sans-serif;
+            transition: background-color 0.3s;
+            min-height: 100vh;
+        }
+
+        .tab-button.active {
+            background-color: var(--primary-color);
+            color: white;
+            box-shadow: 0 4px 14px 0 rgba(79, 70, 229, 0.4);
+        }
+        .tab-button {
+            transition: all 0.2s ease-in-out;
+        }
+
+        .input-style {
+            background-color: var(--card-color);
+            border: 1px solid #4b5563;
+            color: var(--text-color);
+            border-radius: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            transition: border-color 0.2s;
+        }
+
+        .input-style:focus {
+            border-color: var(--primary-color);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.5);
+        }
+
+        .password-output {
+            background-color: #111827;
+            border: 2px dashed var(--primary-color);
+        }
+        
+        .loading-ring {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f4f6;
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+    </style>
+</head>
+<body class="flex items-center justify-center p-4">
+
+    <div id="app" class="w-full max-w-lg bg-gray-700 p-6 rounded-xl shadow-2xl transition-all duration-300">
+        
+        <!-- HEADER Y SELECCIÓN DE PESTAÑAS -->
+        <header class="mb-6 text-center">
+            <h1 class="text-3xl font-extrabold text-white mb-1 flex items-center justify-center">
+                <i data-lucide="lock" class="w-6 h-6 mr-2 text-yellow-400"></i> Secure Vault
+            </h1>
+            <p class="text-gray-400 text-sm">Generador y Gestor de Contraseñas</p>
+        </header>
+
+        <div class="flex space-x-2 p-1 bg-gray-800 rounded-lg mb-6 shadow-inner">
+            <button id="generator-tab-button" class="tab-button active flex-1 py-2 rounded-lg text-sm font-medium">
+                <i data-lucide="key" class="w-4 h-4 inline mr-1"></i> Generador
+            </button>
+            <button id="vault-tab-button" class="tab-button flex-1 py-2 rounded-lg text-sm font-medium text-gray-300 hover:bg-gray-700">
+                <i data-lucide="folder-lock" class="w-4 h-4 inline mr-1"></i> Gestor (Vault)
+            </button>
+        </div>
+
+        <!-- CONTENIDO DE LAS PESTAÑAS -->
+
+        <!-- 1. PESTAÑA GENERADOR -->
+        <div id="generator-tab" class="tab-content">
+            <h2 class="text-xl font-semibold mb-4 text-white">Configura tu Contraseña</h2>
+            
+            <div class="mb-4">
+                <label for="length" class="block text-sm font-medium text-gray-300 mb-2">Longitud: <span id="length-value" class="font-bold text-yellow-400">16</span> caracteres</label>
+                <input type="range" id="length" min="8" max="32" value="16" class="w-full h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer range-lg" oninput="document.getElementById('length-value').textContent = this.value">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 mb-6">
+                <!-- Opciones de caracteres -->
+                <label class="flex items-center text-gray-300 cursor-pointer">
+                    <input type="checkbox" id="include-uppercase" checked class="h-4 w-4 text-primary-color bg-gray-700 border-gray-600 rounded focus:ring-primary-light">
+                    <span class="ml-2 text-sm">Mayúsculas (A-Z)</span>
+                </label>
+                <label class="flex items-center text-gray-300 cursor-pointer">
+                    <input type="checkbox" id="include-lowercase" checked class="h-4 w-4 text-primary-color bg-gray-700 border-gray-600 rounded focus:ring-primary-light">
+                    <span class="ml-2 text-sm">Minúsculas (a-z)</span>
+                </label>
+                <label class="flex items-center text-gray-300 cursor-pointer">
+                    <input type="checkbox" id="include-numbers" checked class="h-4 w-4 text-primary-color bg-gray-700 border-gray-600 rounded focus:ring-primary-light">
+                    <span class="ml-2 text-sm">Números (0-9)</span>
+                </label>
+                <label class="flex items-center text-gray-300 cursor-pointer">
+                    <input type="checkbox" id="include-symbols" class="h-4 w-4 text-primary-color bg-gray-700 border-gray-600 rounded focus:ring-primary-light">
+                    <span class="ml-2 text-sm">Símbolos (!@#$)</span>
+                </label>
+            </div>
+
+            <!-- Criterios Personalizados (Prefijo/Sufijo) -->
+            <div class="mb-6 p-4 bg-gray-800 rounded-lg">
+                <h3 class="text-base font-medium text-gray-200 mb-3 flex items-center">
+                    <i data-lucide="settings" class="w-4 h-4 mr-2 text-yellow-500"></i> Criterios Personalizados
+                </h3>
+                <div class="flex space-x-3">
+                    <div class="flex-1">
+                        <label for="prefix" class="block text-xs font-medium text-gray-400">Caracteres al Inicio (Prefijo)</label>
+                        <input type="text" id="prefix" maxlength="5" placeholder="Ej: A1" class="input-style w-full mt-1 text-sm">
+                    </div>
+                    <div class="flex-1">
+                        <label for="suffix" class="block text-xs font-medium text-gray-400">Caracteres al Final (Sufijo)</label>
+                        <input type="text" id="suffix" maxlength="5" placeholder="Ej: 9!" class="input-style w-full mt-1 text-sm">
+                    </div>
+                </div>
+            </div>
+
+            <!-- BOTÓN GENERAR -->
+            <button onclick="generatePassword()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition-colors duration-300 shadow-lg shadow-indigo-500/50 mb-4">
+                <i data-lucide="zap" class="w-5 h-5 inline mr-2"></i> Generar Contraseña
+            </button>
+
+            <!-- RESULTADO -->
+            <div class="password-output p-4 rounded-xl flex items-center justify-between mt-4">
+                <input type="text" id="password-output" readonly placeholder="Contraseña generada aparecerá aquí..." class="w-full bg-transparent border-none text-xl font-mono truncate text-green-400">
+                <button onclick="copyToClipboard('password-output')" class="ml-3 text-gray-400 hover:text-green-400 transition-colors duration-200">
+                    <i data-lucide="clipboard" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <button id="save-generated-btn" onclick="openSaveModal()" class="w-full bg-gray-600 hover:bg-gray-500 text-white text-sm py-2 rounded-xl mt-3 transition-colors duration-300" disabled>
+                <i data-lucide="save" class="w-4 h-4 inline mr-1"></i> Guardar en Gestor
+            </button>
+        </div>
+
+        <!-- 2. PESTAÑA GESTOR (VAULT) -->
+        <div id="vault-tab" class="tab-content hidden">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold text-white">Tus Credenciales Guardadas</h2>
+                <button onclick="showSaveModal('new')" class="bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-full transition-colors duration-300 shadow-md">
+                    <i data-lucide="plus" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div id="vault-list" class="space-y-3">
+                <!-- Las credenciales se cargarán aquí -->
+                <div class="text-gray-400 text-center py-8" id="vault-loading-indicator">
+                    <i data-lucide="loader" class="w-6 h-6 animate-spin mx-auto mb-2 text-primary-light"></i>
+                    Conectando con Firebase...
+                </div>
+                <div class="text-gray-400 text-center py-8 hidden" id="vault-empty-message">
+                    <i data-lucide="folder-open" class="w-8 h-8 mx-auto mb-2 text-gray-500"></i>
+                    Aún no tienes contraseñas guardadas.
+                </div>
+            </div>
+            
+            <p class="text-xs text-center text-gray-500 mt-6">
+                <!-- En una app nativa, el acceso sería biométrico. -->
+                <i data-lucide="info" class="w-3 h-3 inline mr-1"></i> ID de Usuario: <span id="current-user-id" class="font-mono text-gray-400">Cargando...</span>
+            </p>
+        </div>
+        
+    </div>
+
+    <!-- MODAL PARA GUARDAR CREDENCIALES -->
+    <div id="save-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden items-center justify-center p-4">
+        <div class="bg-gray-700 p-6 rounded-xl shadow-2xl w-full max-w-md">
+            <h3 class="text-xl font-bold mb-4 text-white" id="modal-title">Guardar Nueva Credencial</h3>
+            
+            <div class="space-y-4">
+                <div>
+                    <label for="modal-service" class="block text-sm font-medium text-gray-300 mb-1">Servicio / Plataforma</label>
+                    <input type="text" id="modal-service" placeholder="Ej: Google, Netflix" class="input-style w-full">
+                </div>
+                <div>
+                    <label for="modal-username" class="block text-sm font-medium text-gray-300 mb-1">Nombre de Usuario / Email</label>
+                    <input type="text" id="modal-username" placeholder="Tu usuario o email" class="input-style w-full">
+                </div>
+                <div>
+                    <label for="modal-password" class="block text-sm font-medium text-gray-300 mb-1">Contraseña</label>
+                    <input type="text" id="modal-password" placeholder="Contraseña" class="input-style w-full">
+                    <p class="text-xs text-yellow-400 mt-1">
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex justify-end space-x-3 mt-6">
+                <button onclick="closeModal('save-modal')" class="px-4 py-2 text-sm font-medium text-gray-300 bg-gray-600 hover:bg-gray-500 rounded-lg transition-colors">
+                    Cancelar
+                </button>
+                <!-- BOTÓN LLAMA A LA FUNCIÓN CORREGIDA -->
+                <button onclick="saveCredential()" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors" id="modal-save-button">
+                    Guardar Credencial
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE NOTIFICACIÓN SIMPLE -->
+    <div id="notification-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden items-center justify-center p-4">
+        <div class="bg-gray-700 p-6 rounded-xl shadow-2xl w-full max-w-xs text-center">
+            <i id="notification-icon" class="w-8 h-8 mx-auto mb-3 text-green-400"></i>
+            <p id="notification-message" class="text-lg text-white font-medium"></p>
+            <button onclick="closeModal('notification-modal')" class="mt-4 px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors">
+                Cerrar
+            </button>
+        </div>
+    </div>
+
+
+    <script type="module">
+        // Importación de Firebase
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, collection, onSnapshot, addDoc, deleteDoc, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // --- CONFIGURACIÓN DE FIREBASE (TU PROYECTO) ---
+        // ¡IMPORTANTE! Asegúrate de que esta configuración coincida con tu Consola de Firebase.
+        const firebaseConfig = {
+            apiKey: "AIzaSyDrxLBeVVPubIXQuFNSC8w2K9RMxs7TkEI",
+             authDomain: "vaultapp-47563.firebaseapp.com",
+             projectId: "vaultapp-47563",
+             storageBucket: "vaultapp-47563.firebasestorage.app",
+             messagingSenderId: "187946059602",
+             appId: "1:187946059602:web:949e3342c8c17050005c8b"
+        };
+
+        // El ID del proyecto se usa para la ruta de la colección en Firestore
+        const appId = firebaseConfig.projectId; 
+        
+        let db;
+        let auth;
+        let userId = null;
+        let isAuthReady = false;
+
+        // Inicialización de Firebase
+        try {
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+            console.log("Firebase inicializado correctamente.");
+        } catch (error) {
+            console.error("Error al inicializar Firebase. Revisa tu firebaseConfig.", error);
+        }
+        
+        // Listener de autenticación
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                // Autenticación exitosa (anónima o con token)
+                userId = user.uid;
+                document.getElementById('current-user-id').textContent = userId;
+                isAuthReady = true;
+                console.log("Usuario autenticado. UID:", userId);
+                // Una vez autenticado, cargamos los datos
+                loadVaultData(); 
+            } else if (!auth.currentUser) {
+                // Si no hay usuario, intenta iniciar sesión anónimamente
+                try {
+                    console.log("Intentando iniciar sesión anónima...");
+                    // Nota: Si esto falla, es porque la autenticación anónima no está activa en la consola.
+                    await signInAnonymously(auth); 
+                } catch (error) {
+                    console.error("❌ ERROR CRÍTICO DE AUTENTICACIÓN. Revisa la Consola de Firebase. ❌", error.code, error.message);
+                    isAuthReady = false; 
+                    
+                    // Mostrar mensaje de error más claro en la UI
+                    const errorMessage = `
+                        <div class="text-center py-8 bg-gray-800 rounded-xl mt-4 p-4">
+                            <i data-lucide="server-off" class="w-8 h-8 mx-auto mb-2 text-red-500"></i>
+                            <p class="text-red-500 font-bold">ERROR DE CONEXIÓN A FIREBASE</p>
+                            <p class="text-sm text-gray-300 mt-2">
+                                No se pudo conectar a la base de datos ni autenticar al usuario.
+                            </p>
+                            <p class="text-xs text-gray-400 mt-1">
+                                Causa: Verifica que la **Autenticación Anónima** esté habilitada y que las **Reglas de Firestore** estén publicadas.
+                            </p>
+                        </div>`;
+                        
+                    document.getElementById('vault-loading-indicator').classList.add('hidden');
+                    document.getElementById('vault-list').innerHTML = errorMessage;
+                    document.getElementById('current-user-id').textContent = 'ERROR';
+                    lucide.createIcons();
+                }
+            }
+        });
+
+        // --- FUNCIONES DE LA BASE DE DATOS (GESTIÓN DE CREDENCIALES) ---
+
+        /**
+         * Obtiene la referencia a la colección de contraseñas del usuario actual.
+         */
+        function getUserCollectionRef() {
+            if (!isAuthReady || !userId) {
+                console.error("Firebase no está listo o userId no disponible.");
+                return null;
+            }
+            // Ruta: /artifacts/{appId}/users/{userId}/passwords
+            return collection(db, 'artifacts', appId, 'users', userId, 'passwords');
+        }
+
+        /**
+         * Carga los datos de la bóveda en tiempo real usando onSnapshot.
+         */
+        function loadVaultData() {
+            if (!isAuthReady || !userId) return; // Se previene la carga si Auth falló o no está listo
+
+            const vaultList = document.getElementById('vault-list');
+            const loadingIndicator = document.getElementById('vault-loading-indicator');
+            const emptyMessage = document.getElementById('vault-empty-message');
+            const collectionRef = getUserCollectionRef();
+            
+            if (!collectionRef) {
+                loadingIndicator.classList.add('hidden');
+                vaultList.innerHTML = `<p class="text-red-400 text-center pt-4">Error: No se pudo conectar a la base de datos.</p>`;
+                return;
+            }
+
+            // Muestra el loader mientras carga
+            loadingIndicator.classList.remove('hidden');
+            emptyMessage.classList.add('hidden');
+            vaultList.innerHTML = ''; // Limpia la lista antes de cargar
+
+            onSnapshot(query(collectionRef), (snapshot) => {
+                const passwords = [];
+                snapshot.forEach(doc => {
+                    // Nota de seguridad: En una aplicación real, aquí se DESCIFRARÍA la contraseña.
+                    passwords.push({ id: doc.id, ...doc.data() });
+                });
+
+                loadingIndicator.classList.add('hidden');
+
+                if (passwords.length === 0) {
+                    emptyMessage.classList.remove('hidden');
+                    vaultList.innerHTML = '';
+                } else {
+                    emptyMessage.classList.add('hidden');
+                    displayVaultData(passwords);
+                }
+            }, (error) => {
+                console.error("Error al obtener los datos de la bóveda (Firestore):", error);
+                loadingIndicator.classList.add('hidden');
+                // Esto podría ser un error de reglas de seguridad si la autenticación ya pasó.
+                vaultList.innerHTML = `<p class="text-red-400 text-center pt-4 font-semibold">ERROR DE ACCESO A DATOS</p>
+                                      <p class="text-sm text-gray-400">Verifica tus reglas de seguridad de Firestore para el ID: ${userId}.</p>`;
+            });
+        }
+
+        /**
+         * Muestra la lista de credenciales en la UI.
+         */
+        function displayVaultData(passwords) {
+            const vaultList = document.getElementById('vault-list');
+            vaultList.innerHTML = ''; 
+
+            passwords.forEach(cred => {
+                const item = document.createElement('div');
+                item.className = 'vault-item bg-gray-800 p-4 rounded-lg shadow-md';
+                item.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-lg font-semibold text-white truncate">${cred.service || 'Servicio Desconocido'}</p>
+                            <p class="text-sm text-gray-400 truncate">${cred.username || 'Usuario Desconocido'}</p>
+                            <div class="mt-2 flex items-center">
+                                <span class="password-text text-yellow-400 font-mono text-sm mr-2" data-password="${cred.password}">
+                                    ••••••••••••••••
+                                </span>
+                                <button onclick="togglePasswordVisibility(this)" class="text-gray-500 hover:text-white transition-colors">
+                                    <i data-lucide="eye" class="w-4 h-4 show-icon"></i>
+                                    <i data-lucide="eye-off" class="w-4 h-4 hide-icon hidden"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flex space-x-2 ml-4">
+                            <button onclick="copyPasswordText('${cred.password.replace(/'/g, "\\'")}')" class="text-gray-400 hover:text-green-400 transition-colors duration-200 p-2 rounded-full hover:bg-gray-700" title="Copiar Contraseña">
+                                <i data-lucide="clipboard" class="w-5 h-5"></i>
+                            </button>
+                            <!-- BOTÓN DE ELIMINAR LLAMA A LA FUNCIÓN GLOBAL -->
+                            <button onclick="deleteCredential('${cred.id}')" class="text-gray-400 hover:text-red-400 transition-colors duration-200 p-2 rounded-full hover:bg-gray-700" title="Eliminar Credencial">
+                                <i data-lucide="trash-2" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                vaultList.appendChild(item);
+            });
+            // Vuelve a inicializar los íconos de Lucide que se acaban de agregar al DOM
+            lucide.createIcons();
+        }
+
+        /**
+         * Elimina una credencial de Firestore.
+         * EXPUESTA GLOBALMENTE
+         */
+        window.deleteCredential = async function(docId) {
+            const collectionRef = getUserCollectionRef();
+            if (!collectionRef) return;
+            
+            try {
+                // Se elimina la confirmación (confirm()) para evitar fallos en el entorno
+                await deleteDoc(doc(collectionRef, docId));
+                showNotification('Credencial Eliminada', 'Se ha eliminado la credencial de tu bóveda.', 'trash-2', 'text-red-400');
+                console.log("Credencial eliminada con ID:", docId);
+            } catch (error) {
+                console.error("Error al eliminar credencial:", error);
+                showNotification('Error', 'No se pudo eliminar la credencial. Inténtalo de nuevo.', 'x-circle', 'text-red-400');
+            }
+        }
+
+        /**
+         * Guarda una nueva credencial o la generada en Firestore.
+         * EXPUESTA GLOBALMENTE
+         */
+        window.saveCredential = async function() {
+            const service = document.getElementById('modal-service').value.trim();
+            const username = document.getElementById('modal-username').value.trim();
+            const password = document.getElementById('modal-password').value;
+
+            if (!service || !username || !password) {
+                console.error("Todos los campos son obligatorios.");
+                showNotification('Error', 'Todos los campos son obligatorios.', 'alert-triangle', 'text-yellow-400');
+                return;
+            }
+
+            const collectionRef = getUserCollectionRef();
+            if (!collectionRef) {
+                showNotification('Error', 'No se pudo conectar a la base de datos. Verifica la autenticación.', 'x-circle', 'text-red-400');
+                return;
+            }
+
+            try {
+                const newCredential = {
+                    service: service,
+                    username: username,
+                    password: password, 
+                    // Nota de seguridad: En una aplicación real, aquí se Cifraría la contraseña.
+                    createdAt: new Date().toISOString()
+                };
+
+                await addDoc(collectionRef, newCredential);
+                
+                closeModal('save-modal');
+                showNotification('¡Guardado!', 'La credencial ha sido guardada en tu Gestor.', 'check-circle', 'text-green-400');
+                
+            } catch (error) {
+                console.error("Error al guardar credencial:", error);
+                showNotification('Error', 'No se pudo guardar la credencial. Verifica las reglas de Firestore.', 'x-circle', 'text-red-400');
+            }
+        }
+
+        // --- FUNCIONES DEL GENERADOR DE CONTRASEÑAS ---
+
+        /**
+         * Genera una contraseña basada en los criterios del usuario.
+         */
+        window.generatePassword = function() {
+            const length = parseInt(document.getElementById('length').value);
+            const includeUppercase = document.getElementById('include-uppercase').checked;
+            const includeLowercase = document.getElementById('include-lowercase').checked;
+            const includeNumbers = document.getElementById('include-numbers').checked;
+            const includeSymbols = document.getElementById('include-symbols').checked;
+            const prefix = document.getElementById('prefix').value || '';
+            const suffix = document.getElementById('suffix').value || '';
+
+            let characters = '';
+            if (includeUppercase) characters += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            if (includeLowercase) characters += 'abcdefghijklmnopqrstuvwxyz';
+            if (includeNumbers) characters += '0123456789';
+            if (includeSymbols) characters += '!@#$%^&*()_+~`|}{[]:;?><,./-=';
+
+            if (characters.length === 0) {
+                console.error("Debes seleccionar al menos un tipo de caracter.");
+                showNotification('Advertencia', 'Selecciona al menos un tipo de caracter para generar la contraseña.', 'alert-triangle', 'text-yellow-400');
+                return;
+            }
+
+            const totalLength = length;
+            const requiredLength = prefix.length + suffix.length;
+            const randomLength = totalLength - requiredLength;
+
+            if (randomLength < 0) {
+                 showNotification('Advertencia', `La longitud total (${totalLength}) es menor que la suma del prefijo y sufijo (${requiredLength}). Aumenta la longitud.`, 'alert-triangle', 'text-yellow-400');
+                return;
+            }
+
+            let randomPart = '';
+            for (let i = 0; i < randomLength; i++) {
+                const randomIndex = Math.floor(Math.random() * characters.length);
+                randomPart += characters[randomIndex];
+            }
+
+            const newPassword = prefix + randomPart + suffix;
+            document.getElementById('password-output').value = newPassword;
+            document.getElementById('save-generated-btn').disabled = false;
+        };
+        
+        // --- FUNCIONES DE LA UI Y UTILIDADES ---
+
+        /**
+         * Muestra una notificación modal personalizada.
+         */
+        function showNotification(title, message, iconName, iconColor) {
+            const modal = document.getElementById('notification-modal');
+            document.getElementById('notification-message').textContent = message;
+            
+            // Reemplaza el ícono
+            const iconElement = document.getElementById('notification-icon');
+            iconElement.innerHTML = `<i data-lucide="${iconName}" class="w-8 h-8 mx-auto mb-3 ${iconColor}"></i>`;
+            lucide.createIcons(); // Vuelve a renderizar el ícono
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        /**
+         * Abre el modal para guardar credenciales.
+         */
+        window.openSaveModal = function() {
+            const generatedPassword = document.getElementById('password-output').value;
+            const modal = document.getElementById('save-modal');
+            
+            // Limpia los campos
+            document.getElementById('modal-service').value = '';
+            document.getElementById('modal-username').value = '';
+            
+            // Rellena la contraseña generada
+            document.getElementById('modal-password').value = generatedPassword;
+            document.getElementById('modal-title').textContent = 'Guardar Contraseña Generada';
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        /**
+         * Abre el modal para agregar credenciales manualmente (desde la pestaña Vault).
+         */
+        window.showSaveModal = function(mode) {
+            const modal = document.getElementById('save-modal');
+            
+            // Limpia los campos
+            document.getElementById('modal-service').value = '';
+            document.getElementById('modal-username').value = '';
+            document.getElementById('modal-password').value = '';
+
+            document.getElementById('modal-title').textContent = 'Guardar Nueva Credencial';
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        /**
+         * Cierra cualquier modal abierto.
+         */
+        window.closeModal = function(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+            document.getElementById(modalId).classList.remove('flex');
+        }
+        
+        /**
+         * Copia un valor al portapapeles.
+         */
+        window.copyToClipboard = function(elementId) {
+            const copyText = document.getElementById(elementId);
+            copyText.select();
+            copyText.setSelectionRange(0, 99999); // Para móviles
+
+            try {
+                document.execCommand('copy');
+                showNotification('Copiado', 'La contraseña ha sido copiada al portapapeles.', 'clipboard-check', 'text-yellow-400');
+            } catch (err) {
+                console.error('No se pudo copiar el texto: ', err);
+                showNotification('Error', 'No se pudo copiar el texto automáticamente. Intenta seleccionarlo manualmente.', 'x-circle', 'text-red-400');
+            }
+        };
+
+        /**
+         * Copia el texto directo de la credencial guardada.
+         */
+        window.copyPasswordText = function(text) {
+            try {
+                // Crea un área de texto temporal para copiar
+                const tempInput = document.createElement('textarea');
+                tempInput.value = text;
+                document.body.appendChild(tempInput);
+                tempInput.select();
+                document.execCommand('copy');
+                document.body.removeChild(tempInput);
+                showNotification('Copiado', 'La contraseña ha sido copiada al portapapeles.', 'clipboard-check', 'text-yellow-400');
+            } catch (err) {
+                console.error('No se pudo copiar el texto: ', err);
+                showNotification('Error', 'No se pudo copiar el texto automáticamente.', 'x-circle', 'text-red-400');
+            }
+        };
+        
+        /**
+         * Alterna la visibilidad de la contraseña en el gestor.
+         */
+        window.togglePasswordVisibility = function(button) {
+            const item = button.closest('.vault-item');
+            const passwordSpan = item.querySelector('.password-text');
+            const showIcon = button.querySelector('.show-icon');
+            const hideIcon = button.querySelector('.hide-icon');
+            const password = passwordSpan.getAttribute('data-password');
+
+            if (passwordSpan.textContent.includes('••••')) {
+                // Mostrar contraseña
+                passwordSpan.textContent = password;
+                showIcon.classList.add('hidden');
+                hideIcon.classList.remove('hidden');
+            } else {
+                // Ocultar contraseña
+                passwordSpan.textContent = '••••••••••••••••';
+                showIcon.classList.remove('hidden');
+                hideIcon.classList.add('hidden');
+            }
+        };
+
+        // --- MANEJO DE PESTAÑAS ---
+        const generatorButton = document.getElementById('generator-tab-button');
+        const vaultButton = document.getElementById('vault-tab-button');
+        const generatorTab = document.getElementById('generator-tab');
+        const vaultTab = document.getElementById('vault-tab');
+
+        function activateTab(activeTab, activeBtn, inactiveTab, inactiveBtn) {
+            activeTab.classList.remove('hidden');
+            activeBtn.classList.add('active');
+            inactiveTab.classList.add('hidden');
+            inactiveBtn.classList.remove('active');
+            inactiveBtn.classList.add('text-gray-300');
+            activeBtn.classList.remove('text-gray-300');
+        }
+
+        generatorButton.addEventListener('click', () => {
+            activateTab(generatorTab, generatorButton, vaultTab, vaultButton);
+        });
+
+        vaultButton.addEventListener('click', () => {
+            activateTab(vaultTab, vaultButton, generatorTab, generatorButton);
+        });
+        
+        // Inicializa íconos de Lucide y genera la primera contraseña al cargar
+        window.onload = function() {
+            lucide.createIcons();
+            generatePassword();
+        };
+
+    </script>
+</body>
+</html>
